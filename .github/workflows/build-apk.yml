@@ -1,9 +1,7 @@
-name: Build Android APK lou
+name: Build Android APK  li
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
@@ -12,139 +10,59 @@ jobs:
     runs-on: ubuntu-22.04
     
     steps:
-    # 检出代码
     - name: Checkout code
       uses: actions/checkout@v4
     
-    # 设置Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     
-    # 安装系统依赖
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libtinfo5 \
-          cmake \
-          libffi-dev \
-          libssl-dev \
-          automake \
-          libltdl-dev
+          git zip unzip openjdk-17-jdk python3-pip \
+          autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev libtinfo5 \
+          cmake libffi-dev libssl-dev automake libltdl-dev \
+          aidl
     
-    # 安装Python依赖
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install buildozer==1.5.0 cython==0.29.36
     
-    # 预安装Android SDK（修复版）
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        cmdline-tools-version: 9477386
-        packages: 'build-tools;33.0.0 platforms;android-33 platform-tools'
-        accept-android-sdk-licenses: true
-    # 修复sdkmanager路径（新增）
-    - name: Fix SDK paths
-      run: |
-        # 创建旧的tools目录结构，链接到新的cmdline-tools
-        sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
-        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
-        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/avdmanager /usr/local/lib/android/sdk/tools/bin/avdmanager
-        # 设置权限
-        sudo chmod +x /usr/local/lib/android/sdk/cmdline-tools/latest/bin/*
-    
-    # 生成签名密钥
     - name: Generate keystore
       run: |
         rm -f htac-release-key.keystore
         keytool -genkey -v \
           -keystore htac-release-key.keystore \
           -alias htac \
-          -keyalg RSA \
-          -keysize 2048 \
-          -validity 10000 \
+          -keyalg RSA -keysize 2048 -validity 10000 \
           -dname "CN=HTAC, OU=Engineering, O=HTAC, L=Beijing, ST=Beijing, C=CN" \
-          -storepass htac123456 \
-          -keypass htac123456
+          -storepass htac123456 -keypass htac123456
     
-    # 更新buildozer配置
     - name: Update buildozer.spec
       run: |
         sed -i 's|# android.keystore =|android.keystore = htac-release-key.keystore|' buildozer.spec
         sed -i 's|# android.keystore_password =|android.keystore_password = htac123456|' buildozer.spec
         sed -i 's|# android.keyalias =|android.keyalias = htac|' buildozer.spec
         sed -i 's|# android.keyalias_password =|android.keyalias_password = htac123456|' buildozer.spec
-        # 配置使用系统预装的SDK
-        sed -i 's|# android.sdk_path =|android.sdk_path = /usr/local/lib/android/sdk|' buildozer.spec
-        sed -i 's|# android.ndk_path =|android.ndk_path =|' buildozer.spec
+        sed -i 's|log_level =.*|log_level = 2|' buildozer.spec
+        # 只构建arm64以节省时间和内存
+        sed -i 's|android.archs =.*|android.archs = arm64-v8a|' buildozer.spec || echo "android.archs = arm64-v8a" >> buildozer.spec
     
-    # 构建APK
     - name: Build APK
       run: |
         export PATH="$HOME/.local/bin:$PATH"
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         buildozer android release
       timeout-minutes: 120
-      env:
-        BUILDOZER_WARN_ON_ROOT: 0
-        ANDROID_HOME: /usr/local/lib/android/sdk
-        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     
-    # 上传APK作为构建产物
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: condenser-calc-apk
         path: bin/*.apk
         retention-days: 30
-    
-    # 创建Release（仅在推送到main分支时）
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: bin/*.apk
-        tag_name: v${{ github.run_number }}
-        name: HTAC凝汽器计算 v${{ github.run_number }}
-        body: |
-          ## HTAC凝汽器计算程序 Android APK
-          
-          ### 签名信息
-          - **密钥别名**: htac
-          - **密钥库密码**: htac123456
-          - **有效期**: 10000天
-          
-          ### 安装说明
-          1. 下载APK文件
-          2. 在Android设备上允许安装未知来源应用
-          3. 安装并运行
-          
-          ### 功能特性
-          - 蒸汽热负荷计算
-          - 冷却水参数计算
-          - 传热系数计算
-          - LMTD计算
-          - 换热面积计算
-          - 管数/管长计算
-          - 管板直径计算
-          - 水阻计算
-          
-          ### 系统要求
-          - Android 5.0+
-          - 存储权限
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
