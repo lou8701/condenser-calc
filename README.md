@@ -82,12 +82,7 @@ keytool -genkey -v -keystore htac-release-key.keystore -alias htac -keyalg RSA -
 buildozer android release
 ```
 
-## 签名信息
 
-- **密钥库**: htac-release-key.keystore
-- **密钥别名**: htac
-- **密钥库密码**: htac123456
-- **密钥密码**: htac123456
 
 ## 界面设计
 
