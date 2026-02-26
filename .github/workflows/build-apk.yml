@@ -44,6 +44,18 @@ jobs:
           libssl-dev \
           automake \
           libltdl-dev
+    # 接受Android SDK许可证（新增步骤）
+    - name: Accept Android SDK licenses
+      run: |
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools latest
+        mkdir -p cmdline-tools
+        mv latest cmdline-tools/
+        export PATH="$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin"
+        yes | sdkmanager --licenses
     
     # 安装Python依赖
     - name: Install Python dependencies
