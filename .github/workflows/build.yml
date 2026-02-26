@@ -1,0 +1,102 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython
+    
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          zip \
+          unzip \
+          openjdk-11-jdk \
+          python3-pip \
+          autoconf \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libtinfo5 \
+          cmake \
+          libffi-dev \
+          libssl-dev
+    
+    - name: Generate keystore
+      run: |
+        keytool -genkey -v \
+          -keystore htac-release-key.keystore \
+          -alias htac \
+          -keyalg RSA \
+          -keysize 2048 \
+          -validity 10000 \
+          -dname "CN=HTAC, OU=Engineering, O=HTAC, L=Beijing, ST=Beijing, C=CN" \
+          -storepass htac123456 \
+          -keypass htac123456
+    
+    - name: Update buildozer.spec
+      run: |
+        sed -i 's|# android.keystore =|android.keystore = htac-release-key.keystore|' buildozer.spec
+        sed -i 's|# android.keystore_password =|android.keystore_password = htac123456|' buildozer.spec
+        sed -i 's|# android.keyalias =|android.keyalias = htac|' buildozer.spec
+        sed -i 's|# android.keyalias_password =|android.keyalias_password = htac123456|' buildozer.spec
+    
+    - name: Build APK
+      run: |
+        buildozer android release
+      timeout-minutes: 60
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: condenser-calc-apk
+        path: bin/*.apk
+    
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: bin/*.apk
+        tag_name: v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
+        body: |
+          HTAC凝汽器计算程序 Android APK
+          
+          签名信息：
+          - 密钥别名: htac
+          - 有效期: 10000天
+          
+          安装说明：
+          1. 下载APK文件
+          2. 在Android设备上允许安装未知来源应用
+          3. 安装并运行
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
