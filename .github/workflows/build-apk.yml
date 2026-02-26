@@ -1,4 +1,4 @@
-name: Build Android APK rev@2
+name: Build Android APK lou
 
 on:
   push:
@@ -51,6 +51,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer==1.5.0 cython==0.29.36
     
+    # 预安装Android SDK（修复版）
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 9477386
+        packages: 'build-tools;33.0.0 platforms;android-33 platform-tools'
+        accept-android-sdk-licenses: true
+    
     # 生成签名密钥
     - name: Generate keystore
       run: |
@@ -72,8 +80,11 @@ jobs:
         sed -i 's|# android.keystore_password =|android.keystore_password = htac123456|' buildozer.spec
         sed -i 's|# android.keyalias =|android.keyalias = htac|' buildozer.spec
         sed -i 's|# android.keyalias_password =|android.keyalias_password = htac123456|' buildozer.spec
+        # 配置使用系统预装的SDK
+        sed -i 's|# android.sdk_path =|android.sdk_path = /usr/local/lib/android/sdk|' buildozer.spec
+        sed -i 's|# android.ndk_path =|android.ndk_path =|' buildozer.spec
     
-    # 构建APK（让buildozer自动处理SDK）
+    # 构建APK
     - name: Build APK
       run: |
         export PATH="$HOME/.local/bin:$PATH"
@@ -81,6 +92,8 @@ jobs:
       timeout-minutes: 120
       env:
         BUILDOZER_WARN_ON_ROOT: 0
+        ANDROID_HOME: /usr/local/lib/android/sdk
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     
     # 上传APK作为构建产物
     - name: Upload APK
