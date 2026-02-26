@@ -58,6 +58,15 @@ jobs:
         cmdline-tools-version: 9477386
         packages: 'build-tools;33.0.0 platforms;android-33 platform-tools'
         accept-android-sdk-licenses: true
+    # 修复sdkmanager路径（新增）
+    - name: Fix SDK paths
+      run: |
+        # 创建旧的tools目录结构，链接到新的cmdline-tools
+        sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
+        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
+        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/avdmanager /usr/local/lib/android/sdk/tools/bin/avdmanager
+        # 设置权限
+        sudo chmod +x /usr/local/lib/android/sdk/cmdline-tools/latest/bin/*
     
     # 生成签名密钥
     - name: Generate keystore
