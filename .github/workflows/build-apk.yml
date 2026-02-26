@@ -54,6 +54,8 @@ jobs:
     # 生成签名密钥
     - name: Generate keystore
       run: |
+        # 删除可能已存在的密钥库文件
+        rm -f htac-release-key.keystore
         keytool -genkey -v \
           -keystore htac-release-key.keystore \
           -alias htac \
