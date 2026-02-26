@@ -1,4 +1,4 @@
-name: Build Android APK Rev1
+name: Build Android APK rev@2
 
 on:
   push:
@@ -44,29 +44,16 @@ jobs:
           libssl-dev \
           automake \
           libltdl-dev
-    # 接受Android SDK许可证（新增步骤）
-    - name: Accept Android SDK licenses
-      run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -q commandlinetools-linux-9477386_latest.zip
-        mv cmdline-tools latest
-        mkdir -p cmdline-tools
-        mv latest cmdline-tools/
-        export PATH="$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin"
-        yes | sdkmanager --licenses
     
     # 安装Python依赖
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install buildozer cython
+        pip install buildozer==1.5.0 cython==0.29.36
     
     # 生成签名密钥
     - name: Generate keystore
       run: |
-        # 删除可能已存在的密钥库文件
         rm -f htac-release-key.keystore
         keytool -genkey -v \
           -keystore htac-release-key.keystore \
@@ -86,12 +73,14 @@ jobs:
         sed -i 's|# android.keyalias =|android.keyalias = htac|' buildozer.spec
         sed -i 's|# android.keyalias_password =|android.keyalias_password = htac123456|' buildozer.spec
     
-    # 构建APK
+    # 构建APK（让buildozer自动处理SDK）
     - name: Build APK
       run: |
         export PATH="$HOME/.local/bin:$PATH"
         buildozer android release
       timeout-minutes: 120
+      env:
+        BUILDOZER_WARN_ON_ROOT: 0
     
     # 上传APK作为构建产物
     - name: Upload APK
@@ -104,7 +93,7 @@ jobs:
     # 创建Release（仅在推送到main分支时）
     - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: bin/*.apk
         tag_name: v${{ github.run_number }}
